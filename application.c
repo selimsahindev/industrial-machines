@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdlib.h>
 
 #define CLEAR system("cls");
 
@@ -12,68 +13,110 @@ enum Types {
 
 // Struct Definitions
 
-struct Address {
+typedef struct Address_t {
 	char street[80];
 	int postalCode;
 	char location[80];
-};
+} Address;
 
-struct Person {
+typedef struct Person_t {
 	char name[80];
-	struct Address address;
+	Address address;
 	char entryDate[20];
-};
+} Person;
 
-struct maintenanceData {
-	struct Person;
+typedef struct Maintenance_t {
+	Person person;
 	char date[20];
 	char description[80];
 	enum Statuses status;
-};
+} Maintenance;
 
-struct machineData {
+typedef struct Machine_t {
 	char name[80];
 	char brand[80];
 	char serialNumber[80];
 	char acquisionDate[20];
 	enum Types type;
-	struct Person responsiblePerson;
-};
+	Person responsiblePerson;
+} Machine;
+
+// Linked List Data Structure
+
+typedef struct Node_t {
+	Machine machine;
+	struct Node_t * next;
+} Node;
 
 // Function Signatures
 
 void displayMenu();
 void menuNavigation();
-void addNewMachine();
+Machine createNewMachine();
 char* getTypeName(enum Types type);
 char* getStatusName(enum Statuses status);
-struct Person getPersonDataFromUser();
+Person addResponsiblePerson();
 void addNewMaintenance();
+void writeMachinesBin();
+void readMachinesBin();
+void pushMachine(Machine newMachine);
+
+// Global Variables
+
+Node * machinesList;
 
 void main() {
 	int menuSelection = -1;
+	
+	// Initialize The Root Of Machines List As NULL
+	machinesList = NULL;
+	
+	readMachinesBin();
 	
 	while (menuSelection != 0) {
 		displayMenu();
 
 		scanf(" %d", &menuSelection);
-		menuNavigation(menuSelection);
+		
+		switch(menuSelection) {
+			case 1:
+				pushMachine(createNewMachine());
+				writeMachinesBin();
+				break;
+			case 2:
+				listMachines();
+				break;
+		}
 	}
 }
 
-void menuNavigation(int menuSelection) {
-	switch(menuSelection) {
-		case 1:
-			CLEAR
-			addNewMachine();
-			break;
+void pushMachine(Machine newMachine) {
+	// If the root itself is empty then create and fill it first
+	if (machinesList == NULL) {
+		machinesList = (Node *)malloc(sizeof(Node));
+		machinesList->machine = newMachine;
+		machinesList->next = NULL;
+		return;
 	}
+	
+	Node * iter = machinesList;
+	
+	while (iter->next != NULL) {
+		iter = iter->next;
+	}
+	
+	iter->next = (Node *)malloc(sizeof(Node));
+	iter = iter->next;
+	iter->machine = newMachine;
+	iter->next = NULL;
 }
 
-void addNewMachine() {
-	struct machineData newMachine;
+Machine createNewMachine() {
+	Machine newMachine;
 	int typeInput;
 	char verification;
+	
+	CLEAR
 	
 	printf("\nEnter The Information Of The Machine You Want To Add\n\n");
 	
@@ -110,41 +153,29 @@ void addNewMachine() {
 	CLEAR
 	
 	printf("\nDo you want to assign a responsible person to this machine? Y/N:  ");
-
-	int i = 0;
-	while(i < 4) {
+	
+	while(1) {
 		scanf(" %c", &verification);
 		verification = tolower(verification);
 		
 		if (strchr("y", verification) != NULL) {
-			getPersonDataFromUser();
-			i++;
-			CLEAR
+			newMachine.responsiblePerson = addResponsiblePerson();
+			break;
 		} else if (strchr("n", verification) != NULL) {
 			break;
 		} else {
 			printf("\nYou have chosen an invalid option. Try again Y/N:  ");
-			continue;
-		}
-		
-		if (i > 0) {
-			printf("\nDo you want to assign another person? Y/N:  ");
 		}
 	}
 	
-	printf("\n\n%s\n%s\n%s\n%s\n", newMachine.name, newMachine.brand, newMachine.serialNumber, newMachine.acquisionDate);
-	printf("%s", getTypeName(newMachine.type));
-	
-	fflush(stdin);
-	gets(newMachine.name);
+	return newMachine;
 }
 
-struct Person getPersonDataFromUser() {
-	struct Person person;
+Person addResponsiblePerson() {
+	Person person;
 	
 	CLEAR
 	
-	printf("\nCaution: It is only possible to assign maximum 4 people to a machine.\n");
 	printf("\nEnter Required Information About The Person You Want To Add\n\n");
 
 	printf("\tName:  ");
@@ -167,6 +198,8 @@ struct Person getPersonDataFromUser() {
 	printf("\tLocation:  ");
 	fflush(stdin);
 	gets(person.address.location);
+	
+	return person;
 }
 
 void addNewMaintenance() {
@@ -177,7 +210,7 @@ void addNewMaintenance() {
 		verification = tolower(verification);
 		
 		if (strchr("y", verification) != NULL) {
-			getPersonDataFromUser();
+			addResponsiblePerson();
 			i++;
 			CLEAR
 		} else if (strchr("n", verification) != NULL) {
@@ -192,6 +225,68 @@ void addNewMaintenance() {
 		}
 	}
 	*/
+}
+
+void listMachines() {
+	Machine machine;
+	Node * iter = machinesList;
+	
+	CLEAR
+	
+	while(iter != NULL) {
+		machine = iter->machine;
+		iter = iter->next;
+		
+		printf("\n%s", machine.name);
+		printf("\n%s", getTypeName(machine.type));
+		printf("\n%s", machine.brand);
+		printf("\n%s", machine.serialNumber);
+		printf("\n%s", machine.acquisionDate);
+		printf("\n%s", machine.responsiblePerson.name);
+		printf("\n%s", machine.responsiblePerson.entryDate);
+		printf("\n%s", machine.responsiblePerson.address.street);
+		printf("\n%d", machine.responsiblePerson.address.postalCode);
+		printf("\n%s", machine.responsiblePerson.address.location);
+		printf("\n");
+	}
+	
+	char x[20];
+	fflush(stdin);
+	gets(x);
+}
+
+void writeMachinesBin() {
+	FILE * binFile;
+	binFile = fopen("machines.bin", "wb");
+	
+	Node * node = machinesList;
+	
+	while (node != NULL) {
+		fwrite(&(node->machine), sizeof(Machine), 1, binFile);
+		node = node->next;
+	}
+	
+	fclose(binFile);
+}
+
+void readMachinesBin() {
+	Machine machine;
+	
+	FILE * binFile;
+	binFile = fopen("machines.bin", "rb");
+	
+	if (binFile == NULL) {
+		fclose(binFile);
+		return;
+	}
+	
+	while (!feof(binFile)) {
+		fread(&machine, sizeof(Machine), 1, binFile);
+		
+		pushMachine(machine);
+	}
+		
+	fclose(binFile);
 }
 
 char* getTypeName(enum Types type) {
@@ -214,8 +309,8 @@ void displayMenu() {
 	CLEAR
 	
 	printf("\n\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\261\n");
-	printf("\n  1- Insert new machine   ");
-	//printf("\n  2- Film Ekle            ");
+	printf("\n  1- Insert New Machine   ");
+	printf("\n  2- List Machines        ");
 	//printf("\n  3- Filmleri Listele     ");
 	//printf("\n  4- Film Guncelle        ");
 	//printf("\n  5- Film Sil             ");
